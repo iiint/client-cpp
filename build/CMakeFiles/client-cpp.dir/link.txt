@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/client-cpp.dir/SessionExample.cpp.o  -o client-cpp  libSession.a libGenCPP.a 
