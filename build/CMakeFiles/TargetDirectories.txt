@@ -1,9 +1,0 @@
-/home/iiint/Documents/client-cpp/build/CMakeFiles/rebuild_cache.dir
-/home/iiint/Documents/client-cpp/build/CMakeFiles/edit_cache.dir
-/home/iiint/Documents/client-cpp/build/CMakeFiles/client-cpp.dir
-/home/iiint/Documents/client-cpp/build/CMakeFiles/GenCPP.dir
-/home/iiint/Documents/client-cpp/build/CMakeFiles/Session.dir
-/home/iiint/Documents/client-cpp/build/Session/CMakeFiles/rebuild_cache.dir
-/home/iiint/Documents/client-cpp/build/Session/CMakeFiles/edit_cache.dir
-/home/iiint/Documents/client-cpp/build/gen-cpp/CMakeFiles/rebuild_cache.dir
-/home/iiint/Documents/client-cpp/build/gen-cpp/CMakeFiles/edit_cache.dir
