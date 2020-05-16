@@ -22,10 +22,22 @@
 const string Config::DEFAULT_USER = "user";
 const string Config::DEFAULT_PASSWORD = "password";
 
+TSDataType::TSDataType getTSDataTypeFromString(string str) {
+    // BOOLEAN, INT32, INT64, FLOAT, DOUBLE, TEXT, NULLTYPE
+    if (str == "BOOLEAN")   return TSDataType::BOOLEAN;
+    else if(str == "INT32") return TSDataType::INT32;
+    else if(str == "INT64") return TSDataType::INT64;
+    else if(str == "FLOAT") return TSDataType::FLOAT;
+    else if(str == "DOUBLE") return TSDataType::DOUBLE;
+    else if(str == "TEXT") return TSDataType::TEXT;
+    else if(str == "NULLTYPE") return TSDataType::NULLTYPE;
+    return TSDataType::TEXT;
+}
+
 void RpcUtils::verifySuccess(TSStatus& status) {
     if (status.code != TSStatusCode::SUCCESS_STATUS) {
         char buf[111];
-        sprintf(buf, "%d: %s", status.code, status.message);
+        sprintf(buf, "%d: %s", status.code, status.message.c_str());
         throw IoTDBConnectionException(buf);
     }
 }
@@ -33,7 +45,7 @@ void RpcUtils::verifySuccess(vector<TSStatus>& statuses) {
     for (TSStatus status : statuses) {
         if (status.code != TSStatusCode::SUCCESS_STATUS) {
             char buf[111];
-            sprintf(buf, "%s", status.message);
+            sprintf(buf, "%s", status.message.c_str());
             throw BatchExecutionException(statuses, buf);
         }
     }
@@ -142,7 +154,7 @@ int Tablet::getValueByteSize() {
             break;
         default:
             char buf[111];
-            sprintf(buf, "Data type % s is not supported.", schemas[i].second);
+            sprintf(buf, "Data type %d is not supported.", schemas[i].second);
             throw UnSupportedDataTypeException(buf);
         }
     }
@@ -195,7 +207,7 @@ string SessionUtils::getValue(Tablet& tablet) {
             break;
         default:
             char buf[111];
-            sprintf(buf, "Data type %s is not supported.", dataType);
+            sprintf(buf, "Data type %d is not supported.", dataType);
             throw UnSupportedDataTypeException(buf);
             break;
         }
@@ -228,7 +240,7 @@ bool SessionDataSet::hasNext()
         req->__set_queryId(queryId);
         req->__set_isAlign(true);
         try {
-            shared_ptr<TSFetchResultsResp> resp;
+            shared_ptr<TSFetchResultsResp> resp(new TSFetchResultsResp());
             client->fetchResults(*resp, *req);
             RpcUtils::verifySuccess(resp->status);
 
@@ -237,6 +249,7 @@ bool SessionDataSet::hasNext()
             }
             else {
                 tsQueryDataSet = make_shared<TSQueryDataSet>(resp->queryDataSet);
+                tsQueryDataSetTimeBuffer = tsQueryDataSet->time;
                 rowsIndex = 0;
             }
         }
@@ -252,14 +265,15 @@ bool SessionDataSet::hasNext()
     hasCachedRecord = true;
     return true;
 }
+
 void SessionDataSet::constructOneRow() {
-    vector<Field> outFields;
+    vector<Field*> outFields;
     int loc = 0;
+    Field* field;
     for (int i = 0; i < columnSize; i++) {
-        Field field;
 
         if (duplicateLocation.find(i) != duplicateLocation.end()) {
-            field = Field(outFields[duplicateLocation[i]]);
+            field = new Field(*outFields[duplicateLocation[i]]);
         }
         else {
             MyStringBuffer bitmapBuffer = MyStringBuffer(tsQueryDataSet->bitmapList[loc]);
@@ -270,48 +284,48 @@ void SessionDataSet::constructOneRow() {
 
             if (!isNull(loc, rowsIndex)) {
                 MyStringBuffer valueBuffer = MyStringBuffer(tsQueryDataSet->valueList[loc]);
-                TSDataType::TSDataType dataType = (TSDataType::TSDataType)stoi(columnTypeDeduplicatedList[loc]);
-                field = Field(dataType);
+                TSDataType::TSDataType dataType = getTSDataTypeFromString(columnTypeDeduplicatedList[loc]);
+                field = new Field(dataType);
                 switch (dataType) {
                 case TSDataType::BOOLEAN: {
                     bool booleanValue = valueBuffer.getBool();
-                    field.boolV = booleanValue;
+                    field->boolV = booleanValue;
                     break;
                 }
                 case TSDataType::INT32: {
                     int intValue = valueBuffer.getInt();
-                    field.intV = intValue;
+                    field->intV = intValue;
                     break;
                 }
                 case TSDataType::INT64: {
                     int64_t longValue = valueBuffer.getLong();
-                    field.longV = longValue;
+                    field->longV = longValue;
                     break;
                 }
                 case TSDataType::FLOAT: {
                     float floatValue = valueBuffer.getFloat();
-                    field.floatV = floatValue;
+                    field->floatV = floatValue;
                     break;
                 }
                 case TSDataType::DOUBLE: {
                     double doubleValue = valueBuffer.getDouble();
-                    field.doubleV = doubleValue;
+                    field->doubleV = doubleValue;
                     break;
                 }
                 case TSDataType::TEXT: {
                     string stringValue = valueBuffer.getString();
-                    field.stringV = stringValue;
+                    field->stringV = stringValue;
                     break;
                 }
                 default: {
                     char buf[111];
-                    sprintf(buf, "Data type %s is not supported.", columnTypeDeduplicatedList[i]);
+                    sprintf(buf, "Data type %s is not supported.", columnTypeDeduplicatedList[i].c_str());
                     throw UnSupportedDataTypeException(buf);
                 }
                 }
             }
             else {
-                field = Field(TSDataType::NULLTYPE);
+                field = new Field(TSDataType::NULLTYPE);
             }
             loc++;
         }
@@ -328,7 +342,7 @@ bool SessionDataSet::isNull(int index, int rowNum) {
     return ((flag >> shift) & bitmap) == 0;
 }
 
-RowRecord SessionDataSet::next()
+RowRecord* SessionDataSet::next()
 {
     if (!hasCachedRecord) {
         if (!hasNext()) {
@@ -337,7 +351,7 @@ RowRecord SessionDataSet::next()
     }
 
     hasCachedRecord = false;
-    return rowRecord;
+    return &rowRecord;
 }
 
 void SessionDataSet::closeOperationHandle()
@@ -354,7 +368,7 @@ void SessionDataSet::closeOperationHandle()
     catch (IoTDBConnectionException e)
     {
         char buf[111];
-        sprintf(buf,"EError occurs when connecting to server for close operation, because: ",e.what());
+        sprintf(buf,"Error occurs when connecting to server for close operation, because: %s",e.what());
         throw IoTDBConnectionException(buf);
     }
 }
@@ -445,7 +459,7 @@ void Session::open(bool enableRPCCompression) {
 
 void Session::open(bool enableRPCCompression, int connectionTimeoutInMs)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     if (!isClosed) 
     {
         return;
@@ -488,7 +502,7 @@ void Session::open(bool enableRPCCompression, int connectionTimeoutInMs)
         {
             if (openResp->serverProtocolVersion == 0) {// less than 0.10
                 char buf[111];
-                sprintf(buf, "Protocol not supported, Client version is %s, but Server version is %s", protocolVersion, openResp->serverProtocolVersion);
+                sprintf(buf, "Protocol not supported, Client version is %d, but Server version is %d", protocolVersion, openResp->serverProtocolVersion);
                 logic_error e(buf);
                 throw exception(e);
             }
@@ -516,7 +530,7 @@ void Session::open(bool enableRPCCompression, int connectionTimeoutInMs)
 
 void Session::close()
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     if (isClosed) 
     {
         return;
@@ -545,7 +559,7 @@ void Session::close()
 
 void Session::insertRecord(string deviceId,  int64_t time, vector<string>& measurements, vector<string>& values)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertRecordReq> req(new TSInsertRecordReq());
     req->__set_sessionId(sessionId);
     req->__set_deviceId(deviceId);
@@ -565,7 +579,7 @@ void Session::insertRecord(string deviceId,  int64_t time, vector<string>& measu
 }
 
 void Session::insertRecords(vector<string>& deviceIds, vector<int64_t>& times, vector<vector<string>>& measurementsList, vector<vector<string>>& valuesList) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     int len = deviceIds.size();
     if (len != times.size() || len != measurementsList.size() || len != valuesList.size()) {
         logic_error e("deviceIds, times, measurementsList and valuesList's size should be equal");
@@ -604,7 +618,7 @@ void Session::insertTablet(Tablet& tablet) {
 }
 
 void Session::insertTablet(Tablet& tablet, bool sorted) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     if (sorted) {
         if (!checkSorted(tablet)) {
             throw BatchExecutionException("Times in Tablet are not in ascending order");
@@ -637,7 +651,7 @@ void Session::insertTablet(Tablet& tablet, bool sorted) {
     }
 }
 
-void Session::insertTablets(map<string, Tablet>& tablets) {
+void Session::insertTablets(map<string, Tablet*>& tablets) {
     try
     {
         insertTablets(tablets, false);
@@ -649,33 +663,33 @@ void Session::insertTablets(map<string, Tablet>& tablets) {
     }
 }
 
-void Session::insertTablets(map<string, Tablet>& tablets, bool sorted) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+void Session::insertTablets(map<string, Tablet*>& tablets, bool sorted) {
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertTabletsReq> request(new TSInsertTabletsReq());
     request->__set_sessionId(sessionId);
 
     for (auto &item : tablets) {
         if (sorted) {
-            if (!checkSorted(item.second)) {
+            if (!checkSorted(*(item.second))) {
                 throw BatchExecutionException("Times in Tablet are not in ascending order");
             }
         }
         else {
-            sortTablet(tablets[item.first]);
+            sortTablet(*(tablets[item.first]));
         }
 
-        request->deviceIds.push_back(item.second.deviceId);
+        request->deviceIds.push_back(item.second->deviceId);
         vector<string> measurements;
         vector<int> dataTypes;
-        for (pair<string, TSDataType::TSDataType> schema : item.second.schemas) {
+        for (pair<string, TSDataType::TSDataType> schema : item.second->schemas) {
             measurements.push_back(schema.first);
             dataTypes.push_back(schema.second);
         }
         request->measurementsList.push_back(measurements);
         request->typesList.push_back(dataTypes);
-        request->timestampsList.push_back(SessionUtils::getTime(item.second));
-        request->valuesList.push_back(SessionUtils::getValue(item.second));
-        request->sizeList.push_back(item.second.rowSize);
+        request->timestampsList.push_back(SessionUtils::getTime(*(item.second)));
+        request->valuesList.push_back(SessionUtils::getValue(*(item.second)));
+        request->sizeList.push_back(item.second->rowSize);
 
         try
         {
@@ -690,8 +704,8 @@ void Session::insertTablets(map<string, Tablet>& tablets, bool sorted) {
     }
 }
 
-void Session::testInsertRecord(string deviceId, int64_t time, vector<string> measurements, vector<string> values) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+void Session::testInsertRecord(string deviceId, int64_t time, vector<string>& measurements, vector<string>& values) {
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertRecordReq> req(new TSInsertRecordReq());
     req->__set_sessionId(sessionId);
     req->__set_deviceId(deviceId);
@@ -711,7 +725,7 @@ void Session::testInsertRecord(string deviceId, int64_t time, vector<string> mea
 }
 
 void Session::testInsertTablet(Tablet& tablet) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertTabletReq> request(new TSInsertTabletReq());
     request->__set_sessionId(sessionId);
     request->deviceId = tablet.deviceId;
@@ -736,7 +750,7 @@ void Session::testInsertTablet(Tablet& tablet) {
 }
 
 void Session::testInsertRecords(vector<string>& deviceIds, vector<int64_t>& times, vector<vector<string>>& measurementsList, vector<vector<string>>& valuesList) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     int len = deviceIds.size();
     if (len != times.size() || len != measurementsList.size() || len != valuesList.size()) {
         logic_error error("deviceIds, times, measurementsList and valuesList's size should be equal");
@@ -770,7 +784,7 @@ void Session::deleteTimeseries(string path)
 
 void Session::deleteTimeseries(vector<string>& paths)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSStatus> resp(new TSStatus());
     try
     {
@@ -792,7 +806,7 @@ void Session::deleteData(string path,  int64_t time)
 
 void Session::deleteData(vector<string>& deviceId, int64_t time)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSDeleteDataReq> req(new TSDeleteDataReq());
     req->__set_sessionId(sessionId);
     req->__set_paths(deviceId);
@@ -811,7 +825,7 @@ void Session::deleteData(vector<string>& deviceId, int64_t time)
 
 void Session::setStorageGroup(string storageGroupId)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSStatus> resp(new TSStatus());
     try 
     {
@@ -833,7 +847,7 @@ void Session::deleteStorageGroup(string storageGroup)
 
 void Session::deleteStorageGroups(vector<string>& storageGroups)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSStatus> resp(new TSStatus());
     try 
     {
@@ -849,8 +863,7 @@ void Session::deleteStorageGroups(vector<string>& storageGroups)
 void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSEncoding::TSEncoding encoding, CompressionType::CompressionType compressor) {
     try
     {
-        map<string, string> props, tags, attributes;
-        createTimeseries(path, dataType, encoding, compressor, props, tags, attributes, "");
+        createTimeseries(path, dataType, encoding, compressor, NULL, NULL, NULL, "");
     }
     catch (IoTDBConnectionException& e)
     {
@@ -859,19 +872,29 @@ void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSE
 }
 
 void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSEncoding::TSEncoding encoding, CompressionType::CompressionType compressor,
-    map<string, string>& props, map<string, string>& tags, map<string, string>& attributes, string measurementAlias)
+    map<string, string>* props, map<string, string>* tags, map<string, string>* attributes, string measurementAlias)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSCreateTimeseriesReq> req(new TSCreateTimeseriesReq());
     req->__set_sessionId(sessionId);
     req->__set_path(path);
     req->__set_dataType(dataType);
     req->__set_encoding(encoding);
     req->__set_compressor(compressor);
-    req->__set_props(props);
-    req->__set_tags(tags);
-    req->__set_attributes(attributes);
-    req->__set_measurementAlias(measurementAlias);
+    if (props != NULL) {
+        req->__set_props(*props);
+    }
+    
+    if (tags != NULL) {
+        req->__set_tags(*tags);
+    }
+    if (attributes != NULL) {
+        req->__set_attributes(*attributes);
+    }
+    if (measurementAlias != "") {
+        req->__set_measurementAlias(measurementAlias);
+    }
+
     shared_ptr<TSStatus> resp(new TSStatus());
     try 
     {
@@ -885,8 +908,8 @@ void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSE
 }
 
 void Session::createMultiTimeseries(vector<string> paths, vector<TSDataType::TSDataType> dataTypes, vector<TSEncoding::TSEncoding> encodings, vector<CompressionType::CompressionType> compressors,
-    vector<map<string, string>> propsList, vector<map<string, string>> tagsList, vector<map<string, string>> attributesList, vector<string> measurementAliasList) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    vector<map<string, string>>* propsList, vector<map<string, string>>* tagsList, vector<map<string, string>>* attributesList, vector<string>* measurementAliasList) {
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSCreateMultiTimeseriesReq> request(new TSCreateMultiTimeseriesReq());
     request->__set_sessionId(sessionId);
     request->__set_paths(paths);
@@ -909,10 +932,19 @@ void Session::createMultiTimeseries(vector<string> paths, vector<TSDataType::TSD
     }
     request->__set_compressors(compressorsOrdinal);
 
-    request->__set_propsList(propsList);
-    request->__set_tagsList(tagsList);
-    request->__set_attributesList(attributesList);
-    request->__set_measurementAliasList(measurementAliasList);
+    if (propsList != NULL) {
+        request->__set_propsList(*propsList);
+    }
+    
+    if (tagsList != NULL) {
+        request->__set_tagsList(*tagsList);
+    }
+    if (attributesList != NULL) {
+        request->__set_attributesList(*attributesList);
+    }
+    if (measurementAliasList != NULL) {
+        request->__set_measurementAliasList(*measurementAliasList);
+    }
 
     try
     {
@@ -927,7 +959,7 @@ void Session::createMultiTimeseries(vector<string> paths, vector<TSDataType::TSD
 }
 
 bool Session::checkTimeseriesExists(string path) {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     try {
         string sql = "SHOW TIMESERIES " + path;
         return executeQueryStatement(sql)->hasNext();
@@ -976,7 +1008,7 @@ void Session::setTimeZone(string zoneId)
 
 SessionDataSet* Session::executeQueryStatement(string sql)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSExecuteStatementReq> req(new TSExecuteStatementReq());
     req->__set_sessionId(sessionId);
     req->__set_statementId(statementId);
@@ -992,12 +1024,13 @@ SessionDataSet* Session::executeQueryStatement(string sql)
     {
         throw IoTDBConnectionException(e.what());
     }
-    return new SessionDataSet(sql, resp->columns, resp->dataTypeList, resp->queryId, client, sessionId, make_shared<TSQueryDataSet>(resp->queryDataSet));
+    shared_ptr<TSQueryDataSet> queryDataSet(new TSQueryDataSet(resp->queryDataSet));
+    return new SessionDataSet(sql, resp->columns, resp->dataTypeList, resp->queryId, client, sessionId, queryDataSet);
 }
 
 void Session::executeNonQueryStatement(string sql)
 {
-    lock_guard<std::mutex> mtx_locker(sessionMutex);
+    // lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSExecuteStatementReq> req(new TSExecuteStatementReq());
     req->__set_sessionId(sessionId);
     req->__set_statementId(statementId);

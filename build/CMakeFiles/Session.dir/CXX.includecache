@@ -35,6 +35,8 @@ shared_mutex
 -
 stdexcept
 -
+cstdlib
+-
 thrift/protocol/TBinaryProtocol.h
 -
 thrift/protocol/TCompactProtocol.h

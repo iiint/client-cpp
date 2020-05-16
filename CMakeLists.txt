@@ -13,3 +13,6 @@ aux_source_directory(. EXE_SRCS)
 add_executable(client-cpp ${EXE_SRCS})
 target_link_libraries(client-cpp Session)
 target_link_libraries(client-cpp GenCPP)
+
+target_link_libraries(client-cpp libthrift.a)
+target_link_libraries(client-cpp libthriftnb.a)

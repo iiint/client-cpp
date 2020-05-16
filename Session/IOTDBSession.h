@@ -29,6 +29,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
+#include <cstdlib>
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/protocol/TCompactProtocol.h>
 #include <thrift/transport/TSocket.h>
@@ -423,12 +424,12 @@ class RowRecord
 {
 public:
     int64_t timestamp;
-    vector<Field> fields;
+    vector<Field*> fields;
     RowRecord(int64_t timestamp)
     {
         this->timestamp = timestamp;
     }
-    RowRecord(int64_t timestamp, vector<Field> fields) {
+    RowRecord(int64_t timestamp, vector<Field*> fields) {
         this->timestamp = timestamp;
         this->fields = fields;
     }
@@ -439,45 +440,45 @@ public:
     string toString()
     {
         char buf[111];
-        sprintf(buf,"%lld",timestamp);
+        sprintf(buf,"%ld",timestamp);
         string ret = buf;
         for (int i = 0; i < fields.size(); i++)
         {
             ret.append("\t");
-            TSDataType::TSDataType dataType = fields[i].dataType;
+            TSDataType::TSDataType dataType = fields[i]->dataType;
             switch (dataType)
             {
                 case TSDataType::BOOLEAN:{
-                    if (fields[i].boolV) ret.append("true");
+                    if (fields[i]->boolV) ret.append("true");
                     else ret.append("false");
                     break;
                 }
                 case TSDataType::INT32:{
                     char buf[111];
-                    sprintf(buf,"%d",fields[i].intV);
+                    sprintf(buf,"%d",fields[i]->intV);
                     ret.append(buf);
                     break;
                 }
                 case TSDataType::INT64: {
                     char buf[111];
-                    sprintf(buf,"%lld",fields[i].longV);
+                    sprintf(buf,"%ld",fields[i]->longV);
                     ret.append(buf);
                     break;
                 }
                 case TSDataType::FLOAT:{
                     char buf[111];
-                    sprintf(buf,"%f",fields[i].floatV);
+                    sprintf(buf,"%f",fields[i]->floatV);
                     ret.append(buf);
                     break;
                 }
                 case TSDataType::DOUBLE:{
                     char buf[111];
-                    sprintf(buf,"%lf",fields[i].doubleV);
+                    sprintf(buf,"%lf",fields[i]->doubleV);
                     ret.append(buf);
                     break;
                 }
                 case TSDataType::TEXT: {
-                    ret.append(fields[i].stringV);
+                    ret.append(fields[i]->stringV);
                     break;
                 }
                 case TSDataType::NULLTYPE:{
@@ -511,11 +512,12 @@ private:
     int rowsIndex = 0; // used to record the row index in current TSQueryDataSet
     shared_ptr<TSQueryDataSet> tsQueryDataSet;
     MyStringBuffer tsQueryDataSetTimeBuffer;
-    RowRecord rowRecord = NULL;
+    RowRecord rowRecord;
     char* currentBitmap; // used to cache the current bitmap for every column
     static const int flag = 0x80; // used to do `or` operation with bitmap to judge whether the value is null
     
 public:
+    SessionDataSet(){}
     SessionDataSet(string sql, vector<string>& columnNameList, vector<string>& columnTypeList, int64_t queryId, 
         shared_ptr<TSIServiceIf> client, int64_t sessionId, shared_ptr<TSQueryDataSet> queryDataSet) : tsQueryDataSetTimeBuffer(queryDataSet->time)
     {
@@ -547,7 +549,7 @@ public:
     bool hasNext();
     void constructOneRow();
     bool isNull(int index, int rowNum);
-    RowRecord next();
+    RowRecord* next();
     void closeOperationHandle();
 };
 
@@ -607,9 +609,9 @@ class Session
         void insertRecords(vector<string>& deviceIds, vector<int64_t>& times, vector<vector<string>>& measurementsList, vector<vector<string>>& valuesList);
         void insertTablet(Tablet& tablet);
         void insertTablet(Tablet& tablet, bool sorted);
-        void insertTablets(map<string, Tablet>& tablets);
-        void insertTablets(map<string, Tablet>& tablets, bool sorted);
-        void testInsertRecord(string deviceId, int64_t time, vector<string> measurements, vector<string> values);
+        void insertTablets(map<string, Tablet*>& tablets);
+        void insertTablets(map<string, Tablet*>& tablets, bool sorted);
+        void testInsertRecord(string deviceId, int64_t time, vector<string>& measurements, vector<string>& values);
         void testInsertTablet(Tablet& tablet);
         void testInsertRecords(vector<string>& deviceIds, vector<int64_t>& times, vector<vector<string>>& measurementsList, vector<vector<string>>& valuesList);
         void deleteTimeseries(string path);
@@ -621,9 +623,9 @@ class Session
         void deleteStorageGroups(vector<string>& storageGroups);
         void createTimeseries(string path, TSDataType::TSDataType dataType, TSEncoding::TSEncoding encoding, CompressionType::CompressionType compressor);
         void createTimeseries(string path, TSDataType::TSDataType dataType, TSEncoding::TSEncoding encoding, CompressionType::CompressionType compressor,
-            map<string, string>& props, map<string, string>& tags, map<string, string>& attributes, string measurementAlias);
+            map<string, string>* props, map<string, string>* tags, map<string, string>* attributes, string measurementAlias);
         void createMultiTimeseries(vector<string> paths, vector<TSDataType::TSDataType> dataTypes, vector<TSEncoding::TSEncoding> encodings, vector<CompressionType::CompressionType> compressors,
-            vector<map<string, string>> propsList, vector<map<string, string>> tagsList, vector<map<string, string>> attributesList, vector<string> measurementAliasList);
+            vector<map<string, string>>* propsList, vector<map<string, string>>* tagsList, vector<map<string, string>>* attributesList, vector<string>* measurementAliasList);
         bool checkTimeseriesExists(string path);
         SessionDataSet* executeQueryStatement(string sql);
         void executeNonQueryStatement(string sql);
