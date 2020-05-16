@@ -31,13 +31,16 @@ If write a .sh or .bat shell file to make the progress automatically, then the g
 
 The sript file can be coded following steps below:
 
-step 1: Using thrift to compile rpc.thrift and sync.thrift, get gen-cpp folder.
+step 1: Using thrift to compile rpc.thrift, get gen-cpp folder.
 
-step 2: Delete TSIService_server.skeleton.cpp and SyncService_server.skeleton.cpp in gen-cpp folder
+step 2: Delete TSIService_server.skeleton.cpp in gen-cpp folder
 
 step 3: run command: cmake .. , make, ./client-cpp successively under the client-cpp/build
 
 # 4. More info
+## 4.1 Basic requirements
 * thrift version: 0.13.0
+* cmake: 3.16
 * Apache IoTDB version: apache-iotdb-0.10.0
-* If you want to use the own thrift cpp liarary, just change the CMakeLists.txt.
+## 4.2 Others
+* If you want to use your own thrift cpp library, just change the CMakeLists.txt.(that is to say, if you run this project on Windows system, you need change the thrift cpp static library to .lib library file)
