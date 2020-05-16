@@ -459,7 +459,7 @@ void Session::open(bool enableRPCCompression) {
 
 void Session::open(bool enableRPCCompression, int connectionTimeoutInMs)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     if (!isClosed) 
     {
         return;
@@ -530,7 +530,7 @@ void Session::open(bool enableRPCCompression, int connectionTimeoutInMs)
 
 void Session::close()
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     if (isClosed) 
     {
         return;
@@ -559,7 +559,7 @@ void Session::close()
 
 void Session::insertRecord(string deviceId,  int64_t time, vector<string>& measurements, vector<string>& values)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertRecordReq> req(new TSInsertRecordReq());
     req->__set_sessionId(sessionId);
     req->__set_deviceId(deviceId);
@@ -579,7 +579,7 @@ void Session::insertRecord(string deviceId,  int64_t time, vector<string>& measu
 }
 
 void Session::insertRecords(vector<string>& deviceIds, vector<int64_t>& times, vector<vector<string>>& measurementsList, vector<vector<string>>& valuesList) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     int len = deviceIds.size();
     if (len != times.size() || len != measurementsList.size() || len != valuesList.size()) {
         logic_error e("deviceIds, times, measurementsList and valuesList's size should be equal");
@@ -618,7 +618,7 @@ void Session::insertTablet(Tablet& tablet) {
 }
 
 void Session::insertTablet(Tablet& tablet, bool sorted) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     if (sorted) {
         if (!checkSorted(tablet)) {
             throw BatchExecutionException("Times in Tablet are not in ascending order");
@@ -664,7 +664,7 @@ void Session::insertTablets(map<string, Tablet*>& tablets) {
 }
 
 void Session::insertTablets(map<string, Tablet*>& tablets, bool sorted) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertTabletsReq> request(new TSInsertTabletsReq());
     request->__set_sessionId(sessionId);
 
@@ -705,7 +705,7 @@ void Session::insertTablets(map<string, Tablet*>& tablets, bool sorted) {
 }
 
 void Session::testInsertRecord(string deviceId, int64_t time, vector<string>& measurements, vector<string>& values) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertRecordReq> req(new TSInsertRecordReq());
     req->__set_sessionId(sessionId);
     req->__set_deviceId(deviceId);
@@ -725,7 +725,7 @@ void Session::testInsertRecord(string deviceId, int64_t time, vector<string>& me
 }
 
 void Session::testInsertTablet(Tablet& tablet) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSInsertTabletReq> request(new TSInsertTabletReq());
     request->__set_sessionId(sessionId);
     request->deviceId = tablet.deviceId;
@@ -750,7 +750,7 @@ void Session::testInsertTablet(Tablet& tablet) {
 }
 
 void Session::testInsertRecords(vector<string>& deviceIds, vector<int64_t>& times, vector<vector<string>>& measurementsList, vector<vector<string>>& valuesList) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     int len = deviceIds.size();
     if (len != times.size() || len != measurementsList.size() || len != valuesList.size()) {
         logic_error error("deviceIds, times, measurementsList and valuesList's size should be equal");
@@ -784,7 +784,7 @@ void Session::deleteTimeseries(string path)
 
 void Session::deleteTimeseries(vector<string>& paths)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSStatus> resp(new TSStatus());
     try
     {
@@ -806,7 +806,7 @@ void Session::deleteData(string path,  int64_t time)
 
 void Session::deleteData(vector<string>& deviceId, int64_t time)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSDeleteDataReq> req(new TSDeleteDataReq());
     req->__set_sessionId(sessionId);
     req->__set_paths(deviceId);
@@ -825,7 +825,7 @@ void Session::deleteData(vector<string>& deviceId, int64_t time)
 
 void Session::setStorageGroup(string storageGroupId)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSStatus> resp(new TSStatus());
     try 
     {
@@ -847,7 +847,7 @@ void Session::deleteStorageGroup(string storageGroup)
 
 void Session::deleteStorageGroups(vector<string>& storageGroups)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSStatus> resp(new TSStatus());
     try 
     {
@@ -874,7 +874,7 @@ void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSE
 void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSEncoding::TSEncoding encoding, CompressionType::CompressionType compressor,
     map<string, string>* props, map<string, string>* tags, map<string, string>* attributes, string measurementAlias)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSCreateTimeseriesReq> req(new TSCreateTimeseriesReq());
     req->__set_sessionId(sessionId);
     req->__set_path(path);
@@ -909,7 +909,7 @@ void Session::createTimeseries(string path, TSDataType::TSDataType dataType, TSE
 
 void Session::createMultiTimeseries(vector<string> paths, vector<TSDataType::TSDataType> dataTypes, vector<TSEncoding::TSEncoding> encodings, vector<CompressionType::CompressionType> compressors,
     vector<map<string, string>>* propsList, vector<map<string, string>>* tagsList, vector<map<string, string>>* attributesList, vector<string>* measurementAliasList) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSCreateMultiTimeseriesReq> request(new TSCreateMultiTimeseriesReq());
     request->__set_sessionId(sessionId);
     request->__set_paths(paths);
@@ -959,7 +959,7 @@ void Session::createMultiTimeseries(vector<string> paths, vector<TSDataType::TSD
 }
 
 bool Session::checkTimeseriesExists(string path) {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     try {
         string sql = "SHOW TIMESERIES " + path;
         return executeQueryStatement(sql)->hasNext();
@@ -1008,7 +1008,7 @@ void Session::setTimeZone(string zoneId)
 
 SessionDataSet* Session::executeQueryStatement(string sql)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSExecuteStatementReq> req(new TSExecuteStatementReq());
     req->__set_sessionId(sessionId);
     req->__set_statementId(statementId);
@@ -1030,7 +1030,7 @@ SessionDataSet* Session::executeQueryStatement(string sql)
 
 void Session::executeNonQueryStatement(string sql)
 {
-    // lock_guard<std::mutex> mtx_locker(sessionMutex);
+    lock_guard<std::mutex> mtx_locker(sessionMutex);
     shared_ptr<TSExecuteStatementReq> req(new TSExecuteStatementReq());
     req->__set_sessionId(sessionId);
     req->__set_statementId(statementId);

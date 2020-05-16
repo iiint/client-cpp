@@ -197,6 +197,7 @@ void nonQuery() {
 void query() {
   SessionDataSet* dataSet;
   dataSet = session->executeQueryStatement("select * from root.sg1.d1");
+  cout << "timestamp" << "  ";
   for (string name : dataSet->getColumnNames()) {
     cout << name << "  ";
   }
