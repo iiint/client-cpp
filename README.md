@@ -28,9 +28,13 @@ make
 
 # 3. Possible improvements
 If write a .sh or .bat shell file to make the progress automatically, then the gen-cpp folder is not needed.
+
 The sript file can be coded following steps below:
+
 step 1: Using thrift to compile rpc.thrift and sync.thrift, get gen-cpp folder.
+
 step 2: Delete TSIService_server.skeleton.cpp and SyncService_server.skeleton.cpp in gen-cpp folder
+
 step 3: run command: cmake.., make, ./client-cpp successively under the client-cpp/build
 
 # 4. More info
