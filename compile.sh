@@ -15,3 +15,4 @@ touch ${SUB_CMAKELISTS}
 cd ${BUILD_FOLDER}
 ${CMAKE_EXE} ../
 ${MAKE_EXE}
+mv client-cpp ../
