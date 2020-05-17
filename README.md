@@ -36,3 +36,5 @@ We provided an example of how to use the thrift library to connect to IoTDB in c
 * If you have added Thrift executable into your path, you can run client-cpp/compile.sh directly, or you have to modify it to set variable `THREFT_EXE` to point to your executable. This will generate gen-cpp folder automatically.
 
 * If you want to use your own thrift cpp library, just change the CMakeLists.txt.(that is to say, if you run this project on Windows system, you need change the thrift cpp static library to .lib library file)
+
+* If there are errors like `bad interpreter` or `$'\r':command not found` when you run compile.sh, the reason is the file format is different on Windows and Linux(as you konw, Windows use CRLF to end the line, while Unix Style use LF). You can refer to this page to solve the problem: <https://github.com/apache/incubator-iotdb/issues/1209>
